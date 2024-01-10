@@ -1,0 +1,17 @@
+# @name createSession
+POST http://localhost:3000/api/session
+Content-Type: application/json
+
+{
+  "image": "alpine"
+}
+
+###
+
+@containerId = {{createSession.response.body.containerId}}
+
+# @name stop-session
+
+POST http://localhost:3000/api/session/{{containerId}}/stop
+
+###

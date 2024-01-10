@@ -5,7 +5,9 @@ import { validator } from 'hono/validator'
 import { bearerAuth } from 'hono/bearer-auth'
 import * as Docker from 'dockerode'
 import { config as loadEnv } from 'dotenv'
-import { z } from 'zod'
+import { OpenAPIHono } from '@hono/zod-openapi'
+import { swaggerUI } from '@hono/swagger-ui'
+import { sessionPostRoute, sessionStopRoute } from './route-schema'
 
 loadEnv()
 
@@ -13,7 +15,7 @@ const PORT = Number(process.env.PORT ?? 3000)
 const API_TOKEN = process.env.API_TOKEN
 const DEFAULT_IMAGE = process.env.DEFAULT_IMAGE ?? 'debian'
 
-const app = new Hono()
+const app = new OpenAPIHono()
 const docker = new Docker({ socketPath: '/var/run/docker.sock' })
 
 if (API_TOKEN)
@@ -25,13 +27,9 @@ if (API_TOKEN)
   )
 else console.warn('API_TOKEN not set, API is unprotected')
 
-const sessionPostSchema = z.object({
-  image: z.string().optional(),
-})
-
-app.post(
-  '/api/sessions',
-  zodValidator('json', sessionPostSchema),
+app.openapi(
+  sessionPostRoute,
+  // @ts-ignore
   async (c) => {
     const { image } = c.req.valid('json')
     const imageName = image ?? DEFAULT_IMAGE
@@ -51,8 +49,8 @@ app.post(
   },
 )
 
-app.post('/api/sessions/:containerId/stop', async (c) => {
-  const containerId = c.req.param('containerId')
+app.openapi(sessionStopRoute, async (c) => {
+  const { containerId } = c.req.valid('param')
   const container = docker.getContainer(containerId)
   try {
     await container.stop()
@@ -65,7 +63,7 @@ app.post('/api/sessions/:containerId/stop', async (c) => {
   }
 })
 
-// app.post('/api/sessions/:containerId/exec', async (c) => {
+// app.post('/api/session/:containerId/exec', async (c) => {
 //   const containerId = c.req.param('containerId')
 //   const container = docker.getContainer(containerId)
 //   try {
@@ -80,7 +78,16 @@ app.post('/api/sessions/:containerId/stop', async (c) => {
 //       stdin: true,
 //       hijack: true,
 //       // @ts-ignore
-      
+
+app.doc('/doc', {
+  openapi: '3.0.0',
+  info: {
+    title: 'Docker API',
+    version: '1.0.0',
+  },
+})
+
+app.get('/ui', swaggerUI({ url: '/doc' }))
 
 serve(
   {
