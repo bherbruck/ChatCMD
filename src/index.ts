@@ -46,19 +46,23 @@ app.openapi(
   },
 )
 
-app.openapi(sessionStopRoute, async (c) => {
-  const { containerId } = c.req.valid('param')
-  const container = docker.getContainer(containerId)
-  try {
-    await container.stop()
-    await container.remove()
-    return c.text('OK')
-  } catch (error) {
-    console.error(error)
-    // @ts-ignore
-    return c.text(error.message, 400)
-  }
-})
+app.openapi(
+  sessionStopRoute,
+  // @ts-ignore
+  async (c) => {
+    const { containerId } = c.req.valid('param')
+    const container = docker.getContainer(containerId)
+    try {
+      await container.stop()
+      await container.remove()
+      return c.json({ containerId: container.id })
+    } catch (error) {
+      console.error(error)
+      // @ts-ignore
+      return c.text(error.message, 400)
+    }
+  },
+)
 
 // app.post('/api/session/:containerId/exec', async (c) => {
 //   const containerId = c.req.param('containerId')
