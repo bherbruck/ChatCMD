@@ -2,7 +2,9 @@
 POST http://localhost:3000/api/session
 Content-Type: application/json
 
-
+{
+  "image": "debian"
+}
 
 ###
 
