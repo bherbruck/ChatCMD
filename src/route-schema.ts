@@ -54,6 +54,13 @@ export const sessionStopRoute = createRoute({
   responses: {
     200: {
       description: 'Session stopped',
+      content: {
+        'application/json': {
+          schema: z.object({
+            containerId: z.string(),
+          }),
+        },
+      },
     },
     400: errorResponse,
   },
