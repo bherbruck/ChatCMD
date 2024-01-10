@@ -4,7 +4,12 @@ import { OpenAPIHono } from '@hono/zod-openapi'
 import * as Docker from 'dockerode'
 import { config as loadEnv } from 'dotenv'
 import { bearerAuth } from 'hono/bearer-auth'
-import { sessionPostRoute, sessionStopRoute } from './route-schema'
+import {
+  sessionExecRoute,
+  sessionPostRoute,
+  sessionStopRoute,
+} from './route-schema'
+import { handleDockerExecStream } from './lib/handle-docker-exec-stream'
 
 loadEnv()
 
@@ -33,7 +38,7 @@ app.openapi(
     try {
       await docker.pull(imageName)
       const container = await docker.createContainer({
-        Image: image ?? 'debian',
+        Image: imageName,
         Cmd: ['/bin/sleep', 'infinity'],
       })
       await container.start()
@@ -64,21 +69,33 @@ app.openapi(
   },
 )
 
-// app.post('/api/session/:containerId/exec', async (c) => {
-//   const containerId = c.req.param('containerId')
-//   const container = docker.getContainer(containerId)
-//   try {
-//     const exec = await container.exec({
-//       Cmd: ['bash'],
-//       AttachStdin: true,
-//       AttachStdout: true,
-//       AttachStderr: true,
-//       Tty: true,
-//     })
-//     const stream = await exec.start({
-//       stdin: true,
-//       hijack: true,
-//       // @ts-ignore
+app.openapi(
+  sessionExecRoute,
+  // @ts-ignore
+  async (c) => {
+    const containerId = c.req.param('containerId')
+    const command = await c.req.text()
+    const container = docker.getContainer(containerId)
+    try {
+      const exec = await container.exec({
+        Cmd: ['bash', '-c', command],
+        AttachStdin: true,
+        AttachStdout: true,
+        AttachStderr: true,
+        Tty: true,
+      })
+
+      const stream = await exec.start({ stdin: true, hijack: true })
+      const output = await handleDockerExecStream(stream)
+
+      return c.text(output)
+    } catch (error) {
+      console.error(error)
+      // @ts-ignore
+      return c.text(error.message, 400)
+    }
+  },
+)
 
 app.doc('/doc', {
   openapi: '3.0.0',

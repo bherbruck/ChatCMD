@@ -65,3 +65,31 @@ export const sessionStopRoute = createRoute({
     400: errorResponse,
   },
 })
+
+export const sessionExecRoute = createRoute({
+  path: '/api/session/:containerId/exec',
+  method: 'post',
+  request: {
+    params: z.object({
+      containerId: z.string().openapi({ description: 'Container ID' }),
+    }),
+    body: {
+      content: {
+        'text/plain': {
+          schema: z.string().openapi({ description: 'Command' }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Session stopped',
+      content: {
+        'text/plain': {
+          schema: z.string().openapi({ description: 'Output' }),
+        },
+      },
+    },
+    400: errorResponse,
+  },
+})
